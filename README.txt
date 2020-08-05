@@ -1,4 +1,4 @@
-Passo a passo para criar seu BackEnd:
+Passo a passo para criar seu BackEnd (se necessário, o de front-end virá em breve):
 
 - Primeiro de tudo, é necessário criar um Ambiente Virtual, para que não ocorram conflitos entre as versões do
 	python conforme seu projeto avança e outros projetos são formados.
@@ -240,3 +240,142 @@ Passo a passo para criar seu BackEnd:
 	
 	Para maior segurança utilizando esse recurso do Jinja2, você pode utilizar o módulo Markupsafe, que já
 		utilizamos anteriormente neste tutorial, evitando ataques de injeção.
+
+- Acessing Request Data ---> Sempre e fundamental que o servidor reaja às informações que o usuário envia. No Flask,
+	essa informação está contida no objeto global request. Para entender como esse objeto se torna global, 
+	você pode procurar na documentação do Flask por 'Context Locals', mas como não é o objetivo deste guia, 
+	pularemos essa informação e seguiremos para 'Como usar o objeto request'...
+	
+	* request.method ---> O atributo method informa o método http que a função está trando em determinado
+		momento.
+	* request.form ---> O atributo form é usado para acessar as informações que estão sendo transmitidas pelo o 
+		método que está sendo usado, seja ele POST ou PUT. Ele é um dicionário.
+	* request.args ---> O atributo args é usado para acessar os parâmetros passados através da URL (?key=value), 
+		(enviados pelo método GET).
+	
+	Exemplo retirado da documentação do Flask:
+
+		@app.route('/login', methods=['POST', 'GET'])
+		def login():
+		    error = None
+		    if request.method == 'POST':
+		        if valid_login(request.form['username'], request.form['password']):
+		            return log_the_user_in(request.form['username'])
+		        else:
+			    error = 'Invalid username/password'
+		    return render_template('login.html', error=error)
+
+	É importante informar que a chave especificada quando invoca o atributo form, corresponde ao atributo name
+		de uma tag html de formulário. Exemplo:
+			<form method="post">
+			    <label for="username">Username</label>
+			    <input type="text" name="username" id="username">
+			    <label for="password">Password</label>
+			    <input type="password" name="password" id="password">
+			    <input type="submit">
+			</form>
+	
+	Se não existir a chave especificada no atributo form, a exceção KeyError é lançada, e se não for tratada,
+		uma página de erro HTTP 400 Bad Request é mostrada.
+
+	Outro atributo comumente usado é o args. Exemplo retirado da documentação do Flask:
+		searchword = request.args.get('key', '')
+
+- File Uploads ---> Em diversas aplicações web, o usuário pode enviar arquvios para o servidor. E com o Flask, esse
+	processo é bem simples.
+	Antes de tudo, no formulário html, é necessário atribuir o seguinte atributo: enctype="multipart/form-data",
+		para que o navegador possa transmitir esses arquivos para o servidor.
+	Para salvar o arquivo na memória do servidor, existe o método save(). Exemplo da documentação do Flask:
+		from flask import request
+
+		@app.route('/upload', methods=['GET', 'POST'])
+		def upload_file():
+		    if request.method == 'POST':
+		        f = request.files['the_file']
+		        f.save('/var/www/uploads/uploaded_file.txt')
+
+	Para saber como o arquivo era nomeado pelo usuário antes do upload, existe o atributo filename, embora não
+		seja muito confiável, uma vez que pode ser facilmente alterado/forjado. Para ter com segurança o
+		nome original do arquivo, é possível utilizar o método secure_filename() da biblioteca Werkzeug.
+		Exemplo da documentação do Flask:
+			from flask import request
+			from werkzeug.utils import secure_filename
+			
+			@app.route('/upload', methods=['GET', 'POST'])
+			def upload_file():
+			    if request.method == 'POST':
+			        f = request.files['the_file']
+			        f.save('/var/www/uploads/' + secure_filename(f.filename))
+
+
+- Cookies ---> Os Cookies são arquivos usados para armazenar informações sobre os usuários, geralmente auxiliando-os
+	a navegar no site. Por exemplo, uma loja virtual pode utilizar os Cookies para armazenar os produtos 
+	anteriormente acessados por um determinado usuário e dessa forma, recomendar outros produtos relacionados
+	com os anteriores.
+	
+	Com o Flask, o uso de Cookies é bem simples.
+
+	* cookies ---> O atributo cookies é usado para acessar os cookies. É um dicionário que contém todos os 
+		cookies referentes ao usuário. Exemplo da documentação do Flask:
+			from flask import request
+			
+			@app.route('/')
+			def index():
+			    username = request.cookies.get('username')
+
+		Usar cookies.get(key) no lugar de cookies[key] evita o erro KeyError.
+
+	* set_cookies ---> O atributo set_cookies pe usado para alterar o conteúdo dos cookies. Exemplo da
+		documentação do Flask:
+			from flask import make_response
+
+			@app.route('/')
+			def index():
+			    resp = make_response(render_template(...))
+			    resp.set_cookie('username', 'the username')
+			    return resp
+
+- Redirecionamento e Erros ---> Esse é um tópico em que não há muito segredo, portanto apenas apresentarei os 
+	exemplos contidos na página de documentação do Flask.
+
+	* Redirecionamento e abortar uma requisição:
+		from flask import abort, redirect, url_for
+
+		@app.route('/')
+		def index():
+		    return redirect(url_for('login'))
+		
+		@app.route('/login')
+		def login():
+		    abort(401)
+		    this_is_never_executed()
+
+	* Para customisar uma página de erro, é possível usar o decorator errorhandler():
+		from flask import render_template
+
+		@app.errorhandler(404)
+		def page_not_found(error):
+		    return render_template('page_not_found.html'), 404
+
+- Uma última consideração - Responses ---> Uma boa prática a ser feita quando está se fazendo uma aplicação com o
+	Flask, é utilizar o método make_response() antes de retornar o template para a página, pois assim, ainda
+	é possível fazer algumas modificações antes de retornar, como no exemplo retirado da documentação do Flask:
+		@app.errorhandler(404)
+		def not_found(error):
+		    resp = make_response(render_template('error.html'), 404)
+		    resp.headers['X-Something'] = 'A value'
+		    return resp
+
+
+Essa foi apenas uma pequena introdução ao micro-framework Flask. Como você já deve ter percebido, esse passo-a-passo
+	é extremamente baseado na documentação do Flask, com poucos detalhes diferentes e está em português.
+	Foi uma maneira que encontrei de revisar o funcionamento do micro-framework e simultâneamente fazer um guia 
+	para acompanhar o desenvolvimento de uma aplicação com meu amigo.
+
+É importante dizer que o Flask não se limita a apenas o que foi apresentado aqui, outros tópicos que recomendo
+	pesquisar após este passo-a-passo são:
+
+		* Extensões do Flask;
+		* Enviar a aplicação para um Servidor Web.
+	
+	E obviamente, são encontradas na própria documentação do Flask.
