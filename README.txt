@@ -136,4 +136,107 @@ Passo a passo para criar seu BackEnd:
 		    print(url_for('login', next='/'))
 		    print(url_for('profile', username='John Doe'))
 
-- 
+- Métodos HTTP ---> Antes de construirmos de fato nosso back-end, é necessário conhecer os métodos HTTP. São eles:
+	GET, POST, HEAD, PUT, DELETE, TRACE, OPTIONS, CONNECT, PATCH.
+	Por enquanto, apenas utilizaremos os métodos GET e POST. Após esse passo a passo, recomendo se familiarizar
+		com os demais métodos.
+	GET: Requisita uma representação de um recurso, os tipos de represenação mais comuns são os formatos JSON e
+		XML. Esses parâmetros enviados podem ser vistos pela URI.
+	POST: Envia os parâmetros no corpo da requisição.
+	
+	OBS!: O protocolo http não promove segurança, para que os dados enviados sejam realmente protegidos,
+		utilize o protocolo https!
+
+	Por padrão, o método route() do Flask apenas responde à métodos GET. Para utilizar outros métodos, 
+		é necessário passá-los como argumentos para o route(). Exemplo:
+			
+			from flask import Flask, request
+
+			app = Flask(__name__)
+
+			@app.route('/página1', methods=['GET, POST'])
+			def pagina1():
+			    if(request.method == 'POST'):
+				return 'alguma coisa'
+			    elif(request.method == 'GET'):
+				return 'outra coisa'
+
+		Perceba que os métodos HTTP utilizados são passados em forma de lista para o parâmetro methods.
+		O exemplo da prórpia página do Flask:
+			
+			from flask import request
+
+			@app.route('/login', methods=['GET', 'POST'])
+			def login():
+			    if request.method == 'POST':
+			        return do_the_login()
+			    else:
+			        return show_the_login_form()
+
+- Static Files ---> Uma página apenas com HTMl não faz muita coisa, é realmente interessante utilizar CSS e
+	JavaScript para respectivamente implementar beleza e funcionalidade à sua página.
+	Seus arquivos js e css e imagens são ditos como Static Files ('arquivos estátivos'), e para usá-los na sua
+		aplicação com o Flask, é necessário criar uma pasta no seu projeto chamada static, que conterá todos
+		os seus arquivos desse tipo.
+			mkdir static
+	Mas como invocar um determinado elemento de um determidado arquivo em uma determinada página HTML?
+	Entenderemos a seguir...
+
+- Rendering Templates ---> Até agora, passávamos o html para uma rota através do retorno do método referente à rota,
+	via strings, como no exemplo:
+		@app.route('/rota_exemplo'):
+		def rota_exemplo():
+			return '<html><head><title>Rota exemplo</head><body><h1>Rota Exemplo</h1></body></html>'
+
+	Embora funcione, temos que concordar que além de feio, dificulta o desenvolvimento do projeto conforme
+		o crescimento do mesmo.
+	Para solucionar tal problema, há um método no Flask chamado render_template(). Com ele, podemos enviar nosso
+		arquivo html para a rota desejada juntamente com as variáveis que desejamos passar para o nosso
+		template.
+	Exemplo do prórpio flask (adaptado)
+		
+		from flask import Flask, render_template
+		app = Flask(__name__)
+
+		@app.route('/hello/')
+		@app.route('/hello/<name>')
+		def name(name=None):
+		    return render_template('hello.html', name=name)
+
+	Nesse exemplo, podemos perceber duas coisas:
+		* Podemos direcionar a mesma função para mais de uma rota;
+		* Utilizamos o método render_template() para passar o arquivo hello.html para as duas rotas,
+			especificando o parâmetro name como sendo a variável name, que por padrão é None.
+	
+	Todos os seus templates (seus html) devem estar na pasta templates, portanto, você deve criá-la:
+		mkdir templates
+
+	No exemplo anterior, perceba que estamos especificando a variável name, mas como utilizá-la no template?
+	O Flask utiliza um mecanismo de modelo da Web denominado Jinja2, e com ele é possível utilizar um pouco de
+		'python' dentro de seu html, utilizando o seguinte padrão:
+			---> {% palavra-chave %} para comandos como if e else
+			---> {{ variável }} para usar o valor da variável.
+	Exemplo:
+		{% if name %}
+			<h1>Seu nome é: {{ name }} </h1>
+		{% else %}
+			<h1>Não sei seu nome</h1>
+		{% endif %}
+	
+	Dentro de templates, você também tem acesso para os objetos request, session, e g, bem como ao método
+		get_flashed_messages(). É recomendável você pesquisar sobre eles após esse passo-a-passo,
+		entretando, deixo aqui um pouco do objeto session:
+			O objeto session é muito semelhante a um dicionário comum do python, com a única diferença
+				de que deixa rastros de suas modificações.
+				Atributos interessantes do objeto session:
+				* new: True se o session é novo e False se não.
+				* modified: Indica se o session já foi modificado ou não, importante destacar que
+					deve ser alterado manualmente, pois não se altera automaticamente.
+					Funciona como um auxílio durante o desenvolvimento de uma aplicação.
+				* permanent: Se modificar o valor desse atributo para True, a session terá um tempo
+					de vida padrão de 31 dias, se modificado para False, morrerá assim que o
+					usuário desconectar de sua página.
+		Outro objeto interessante para armazenar data, é o g, mas não discutiremos sobre ele neste guia.
+	
+	Para maior segurança utilizando esse recurso do Jinja2, você pode utilizar o módulo Markupsafe, que já
+		utilizamos anteriormente neste tutorial, evitando ataques de injeção.
